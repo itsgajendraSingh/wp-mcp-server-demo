@@ -4,10 +4,8 @@
  * Description: Example implementation of WordPress Abilities API exposed via an MCP server.
  * Author: Gajendra Singh
  * Author URI: https://profiles.wordpress.org/gajendrasingh/
- * Requires at least: 6.8
- * Version:           1.0.0
- * Requires PHP:      7.4
- * Requires Plugins: 
+ * Requires at least: 6.9
+ * Version: 1.0.0
  *
  * This file demonstrates:
  * - Registering Ability Categories
@@ -23,14 +21,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use WP\MCP\Core\McpAdapter;
 
-function wp_add_McpAdapter(){
-    if ( ! class_exists( McpAdapter::class ) ) {
-        return; // or show an admin notice   
-       
-    }
+if ( ! class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
+	add_action(
+		'admin_notices',
+		function () {
+			echo '<div class="notice notice-error"><p>MCP Adapter plugin is not active.</p></div>';
+		}
+	);
+
+	return;
 }
+
 
 /**
  * ------------------------------------------------------------
@@ -40,9 +42,7 @@ function wp_add_McpAdapter(){
  * ------------------------------------------------------------
  */
 
-add_action( 'wp_abilities_api_categories_init', 'wpv_register_ability_categories' );
-
-function wpv_register_ability_categories() {
+add_action( 'wp_abilities_api_categories_init',function () {
 	wp_register_ability_category(
 		'site-post',
 		[
@@ -50,7 +50,7 @@ function wpv_register_ability_categories() {
 			'description' => 'Abilities related to creating site content',
 		]
 	);
-}
+});
 
 /**
  * ------------------------------------------------------------
@@ -63,10 +63,7 @@ function wpv_register_ability_categories() {
  * Execute callback → performs the actual task
  * ------------------------------------------------------------
  */
-add_action( 'wp_abilities_api_init', 'wpv_register_abilities' );
-
-function wpv_register_abilities() {
-
+add_action( 'wp_abilities_api_init', function () {
 	wp_register_ability(
 		'wpv/create-post',
 		[
@@ -125,7 +122,7 @@ function wpv_register_abilities() {
 			],
 		]
 	);
-}
+});
 
 /**
  * ------------------------------------------------------------
@@ -176,10 +173,7 @@ function wpv_create_post( $input ) {
  * Finally, attach abilities to an MCP server. 
  * ------------------------------------------------------------
  */
-add_action(
-	'mcp_adapter_init',
-	function ( $adapter ) {
-
+add_action( 'mcp_adapter_init', function ( $adapter ) {
 		$adapter->create_server(
 			'site-content-server',  // Server ID
 			'site-content-server',  // REST namespace
