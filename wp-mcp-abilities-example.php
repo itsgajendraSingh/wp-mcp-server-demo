@@ -1,3 +1,4 @@
+<?php
 /**
  * Plugin Name: WP MCP Abilities Example
  * Description: Example implementation of WordPress Abilities API exposed via an MCP server.
@@ -197,3 +198,4 @@ add_action(
 		);
 	}
 );
+?>
