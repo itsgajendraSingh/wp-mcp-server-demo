@@ -39,9 +39,9 @@ The ability is marked as **public**, so MCP-compatible agents can discover and u
 4. **Access the MCP endpoint:**
 ```http://<your-site>/wp-json/site-content-server/mcp/```
 
-If the server is registered correctly, you’ll see a `401 Unauthorized` response.
+If the server is registered correctly, you’ll see a response similar to the following:
 ``` response
-{"code":"rest_forbidden","message":"Sorry, you are not allowed to do that.","data":{"status":401}}
+{"namespace":"site-content-server","routes":{"\/site-content-server":{"namespace":"site-content-server","methods":["GET"],"endpoints":[{"methods":["GET"],"args":{"namespace":{"default":"site-content-server","required":false},"context":{"default":"view","required":false}}}],"_links":{"self":[{"href":"http:\/\/localhost:10077\/wp-json\/site-content-server"}]}},"\/site-content-server\/mcp":{"namespace":"site-content-server","methods":["POST","GET","DELETE"],"endpoints":[{"methods":["POST","GET","DELETE"],"args":[]}],"_links":{"self":[{"href":"http:\/\/localhost:10077\/wp-json\/site-content-server\/mcp"}]}}},"_links":{"up":[{"href":"http:\/\/localhost:10077\/wp-json\/"}]}}
 ```
 
 ## Testing Tools via Terminal
@@ -49,7 +49,7 @@ If the server is registered correctly, you’ll see a `401 Unauthorized` respons
 curl -X POST http://<your-site>/wp-json/site-content-server/mcp/
 -H "Content-Type: application/json"
 -H "Mcp-Session-Id: session-id"
--u username:APP_PASSWORD
+-u username:appPassword
 -d '{
 "jsonrpc": "2.0",
 "id": 1,
