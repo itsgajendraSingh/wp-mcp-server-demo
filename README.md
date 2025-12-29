@@ -37,7 +37,7 @@ The ability is marked as **public**, so MCP-compatible agents can discover and u
 2. Paste it into your theme’s `functions.php` file or a custom plugin
 3. Ensure the MCP Adapter plugin is active
 4. **Access the MCP endpoint:**
-```http://<your-site>/wp-json/site-content-server/mcp/```
+```http://<your-site>/wp-json/site-content-server/```
 
 If the server is registered correctly, you’ll see a response similar to the following:
 ``` response
