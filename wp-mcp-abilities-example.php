@@ -1,10 +1,44 @@
 /**
+ * Plugin Name: WP MCP Abilities Example
+ * Description: Example implementation of WordPress Abilities API exposed via an MCP server.
+ * Author: Gajendra Singh
+ * Author URI: https://profiles.wordpress.org/gajendrasingh/
+ * Requires at least: 6.8
+ * Version:           1.0.0
+ * Requires PHP:      7.4
+ * Requires Plugins: 
+ *
+ * This file demonstrates:
+ * - Registering Ability Categories
+ * - Registering Abilities with input/output schemas
+ * - Making abilities discoverable by AI agents
+ * - Attaching abilities to an MCP Server
+ *
+ * Tested with WordPress 6.9+ and the MCP Adapter plugin.
+ */
+
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+use WP\MCP\Core\McpAdapter;
+
+function wp_add_McpAdapter(){
+    if ( ! class_exists( McpAdapter::class ) ) {
+        return; // or show an admin notice   
+       
+    }
+}
+
+/**
  * ------------------------------------------------------------
  * Step 1: Register Ability Categories
  * First, I created the ability category (Create Post). 
  * This step is required because abilities must be assigned to a category at the time they are registered.
  * ------------------------------------------------------------
  */
+
 add_action( 'wp_abilities_api_categories_init', 'wpv_register_ability_categories' );
 
 function wpv_register_ability_categories() {
@@ -21,6 +55,11 @@ function wpv_register_ability_categories() {
  * ------------------------------------------------------------
  * Step 2: Register Abilities
  * 
+ * Each ability defines:
+ * Permission callback → checks user capability
+ * Input schema → tells AI what input is required
+ * Output schema → defines what the response returns
+ * Execute callback → performs the actual task
  * ------------------------------------------------------------
  */
 add_action( 'wp_abilities_api_init', 'wpv_register_abilities' );
@@ -90,6 +129,7 @@ function wpv_register_abilities() {
 /**
  * ------------------------------------------------------------
  * Step 3: Ability Logic
+ * Handles post creation using the input provided by the ability.
  * ------------------------------------------------------------
  */
 function wpv_create_post( $input ) {
@@ -132,6 +172,7 @@ function wpv_create_post( $input ) {
 /**
  * ------------------------------------------------------------
  * Step 4: Register MCP Server
+ * Finally, attach abilities to an MCP server. 
  * ------------------------------------------------------------
  */
 add_action(
@@ -146,12 +187,12 @@ add_action(
 			'MCP server for creating WordPress posts.', // Description
 			'1.0.0',
 			[
-				\WP\MCP\Transport\HttpTransport::class,
+				\WP\MCP\Transport\HttpTransport::class, // Transport methods
 			],
-			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
-			\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class,
+			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class, // Error handler
+			\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class, // Observability handler
 			[
-				'wpv/create-post',
+				'wpv/create-post', //Abilities to expose as tools
 			]
 		);
 	}
