@@ -49,7 +49,7 @@ If the server is registered correctly, you’ll see a `401 Unauthorized` respons
 curl -X POST http://<your-site>/wp-json/site-content-server/mcp/
 -H "Content-Type: application/json"
 -H "Mcp-Session-Id: session-id"
--u admin:APP_PASSWORD
+-u username:APP_PASSWORD
 -d '{
 "jsonrpc": "2.0",
 "id": 1,
