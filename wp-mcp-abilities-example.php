@@ -1,0 +1,158 @@
+/**
+ * ------------------------------------------------------------
+ * Step 1: Register Ability Categories
+ * First, I created the ability category (Create Post). 
+ * This step is required because abilities must be assigned to a category at the time they are registered.
+ * ------------------------------------------------------------
+ */
+add_action( 'wp_abilities_api_categories_init', 'wpv_register_ability_categories' );
+
+function wpv_register_ability_categories() {
+	wp_register_ability_category(
+		'site-post',
+		[
+			'label'       => 'Create Post',
+			'description' => 'Abilities related to creating site content',
+		]
+	);
+}
+
+/**
+ * ------------------------------------------------------------
+ * Step 2: Register Abilities
+ * 
+ * ------------------------------------------------------------
+ */
+add_action( 'wp_abilities_api_init', 'wpv_register_abilities' );
+
+function wpv_register_abilities() {
+
+	wp_register_ability(
+		'wpv/create-post',
+		[
+			'label'       => 'Create Post',
+			'description' => 'Create a new WordPress post using structured input.',
+			'category'    => 'site-post',
+
+			'input_schema' => [
+				'type'       => 'object',
+				'properties' => [
+					'title' => [
+						'type'        => 'string',
+						'description' => 'Title of the post',
+					],
+					'content' => [
+						'type'        => 'string',
+						'description' => 'Post content (block editor markup supported)',
+					],
+					'status' => [
+						'type'        => 'string',
+						'description' => 'Post status',
+						'default'     => 'draft',
+						'enum'        => [ 'draft', 'publish' ],
+					],
+				],
+				'required' => [ 'title', 'content' ],
+			],
+
+			'output_schema' => [
+				'type'       => 'object',
+				'properties' => [
+					'success' => [
+						'type'        => 'boolean',
+						'description' => 'Whether the post was created successfully',
+					],
+					'url' => [
+						'type'        => 'string',
+						'description' => 'URL of the created post',
+					],
+					'error' => [
+						'type'        => 'string',
+						'description' => 'Error message if creation failed',
+					],
+				],
+			],
+
+			'execute_callback'    => 'wpv_create_post',
+			'permission_callback' => '__return_true', // Demo only. Restrict in production.
+
+			'meta' => [
+				'show_in_rest' => true,
+				'mcp'          => [
+					'public' => true,
+					'type'   => 'tool',
+				],
+			],
+		]
+	);
+}
+
+/**
+ * ------------------------------------------------------------
+ * Step 3: Ability Logic
+ * ------------------------------------------------------------
+ */
+function wpv_create_post( $input ) {
+
+	if ( empty( $input['title'] ) || empty( $input['content'] ) ) {
+		return [
+			'success' => false,
+			'error'   => 'Invalid input data.',
+		];
+	}
+
+	$post_data = [
+		'post_title'   => sanitize_text_field( $input['title'] ),
+		'post_content' => wp_kses_post( $input['content'] ),
+		'post_status'  => isset( $input['status'] ) && in_array(
+			$input['status'],
+			[ 'draft', 'publish' ],
+			true
+		)
+			? sanitize_text_field( $input['status'] )
+			: 'draft',
+		'post_author'  => get_current_user_id(),
+	];
+
+	$post_id = wp_insert_post( $post_data, true );
+
+	if ( is_wp_error( $post_id ) ) {
+		return [
+			'success' => false,
+			'error'   => $post_id->get_error_message(),
+		];
+	}
+
+	return [
+		'success' => true,
+		'url'     => get_permalink( $post_id ),
+	];
+}
+
+/**
+ * ------------------------------------------------------------
+ * Step 4: Register MCP Server
+ * ------------------------------------------------------------
+ */
+add_action(
+	'mcp_adapter_init',
+	function ( $adapter ) {
+
+		$adapter->create_server(
+			'site-content-server',  // Server ID
+			'site-content-server',  // REST namespace
+			'mcp',                  // REST route
+			'Site Content Server',  // Server name
+			'MCP server for creating WordPress posts.', // Description
+			'1.0.0',
+			[
+				\WP\MCP\Transport\HttpTransport::class,
+			],
+			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
+			\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class,
+			[
+				'wpv/create-post',
+			]
+		);
+	}
+);
