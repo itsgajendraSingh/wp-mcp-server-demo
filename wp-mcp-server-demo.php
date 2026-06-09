@@ -23,7 +23,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-use WP\MCP\Domain\Prompts\McpPrompt;
 use WP\MCP\Domain\Prompts\McpPromptBuilder;
 
 
@@ -75,24 +74,6 @@ add_action( 'wp_abilities_api_init', function () {
 			'label'       => 'Get Posts',
 			'description' => 'Retrieve a list of WordPress posts with optional filters.',
 			'category'    => 'site-post',
-			'input_schema' => [
-				'type'       => 'object',
-				'properties' => [
-					'numberposts' => [
-						'type'        => 'integer',
-						'description' => 'Number of posts to return. Default is 5.',
-						'default'     => 5,
-						'minimum'     => 1,
-						'maximum'     => 100,
-					],
-					'post_status' => [
-						'type'        => 'string',
-						'description' => 'Post status to filter by.',
-						'enum'        => [ 'publish', 'draft', 'private' ],
-						'default'     => 'publish',
-					],
-				],
-			],
 			'output_schema' => [
 				'type'  => 'array',
 				'items' => [
@@ -106,7 +87,8 @@ add_action( 'wp_abilities_api_init', function () {
 					],
 				],
 			],
-			'execute_callback' => function ( $input ) {
+			'execute_callback' => function ( $input = [] ) {
+				$input = is_array( $input ) ? $input : [];
 				$posts = get_posts( [
 					'numberposts' => $input['numberposts'] ?? 5,
 					'post_status' => $input['post_status'] ?? 'publish',
@@ -127,6 +109,7 @@ add_action( 'wp_abilities_api_init', function () {
 			},
 			'meta' => [
 				'show_in_rest' => true,
+				'uri'          => 'wordpress://wpv/get-posts',
 				'mcp'          => [
 					'public' => true,
 					'type'   => 'resource',
@@ -247,33 +230,35 @@ function wpv_create_post( $input ) {
  * Finally, attach abilities to an MCP server. 
  * ------------------------------------------------------------
  */
+class Wpv_Create_Post_Prompt extends McpPromptBuilder {
+	protected function configure(): void {
+		$this->name        = 'wpv/create-post-prompt';
+		$this->title       = 'Create Post Prompt';
+		$this->description = 'Guides the AI to create a WordPress post with title, content, and status.';
+		$this->add_argument( 'topic', 'The topic or subject of the post', true );
+		$this->add_argument( 'tone', 'Writing tone: formal, casual, or technical', false );
+	}
+
+	public function handle( array $arguments ): array {
+		$topic = $arguments['topic'] ?? 'a general topic';
+		$tone  = $arguments['tone'] ?? 'professional';
+
+		return array_values( [
+			[
+				'role'    => 'user',
+				'content' => "Write a WordPress blog post about: {$topic}. " .
+				             "Use a {$tone} tone. " .
+				             "Provide a clear title, structured content with headings, and set status to draft.",
+			],
+		] );
+	}
+
+	public function has_permission( array $arguments ): bool {
+		return current_user_can( 'edit_posts' );
+	}
+}
+
 add_action( 'mcp_adapter_init', function ( $adapter ) {
-
-	$create_post_prompt = McpPrompt::fromBuilder(
-		( new McpPromptBuilder() )
-			->set_name( 'wpv/create-post-prompt' )
-			->set_title( 'Create Post Prompt' )
-			->set_description( 'Guides the AI to create a WordPress post with title, content, and status.' )
-			->add_argument( 'topic', 'The topic or subject of the post', true )
-			->add_argument( 'tone', 'Writing tone: formal, casual, or technical', false )
-			->set_handler( function ( $args ) {
-				$topic = $args['topic'] ?? 'a general topic';
-				$tone  = $args['tone'] ?? 'professional';
-
-				return [
-					[
-						'role'    => 'user',
-						'content' => "Write a WordPress blog post about: {$topic}. " .
-						             "Use a {$tone} tone. " .
-						             "Provide a clear title, structured content with headings, and set status to draft.",
-					],
-				];
-			} )
-			->set_permission( function () {
-				return current_user_can( 'edit_posts' );
-			} )
-	);
-
 	$adapter->create_server(
 		'site-content-server',
 		'site-content-server',
@@ -288,7 +273,7 @@ add_action( 'mcp_adapter_init', function ( $adapter ) {
 		\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class,
 		[ 'wpv/create-post' ],
 		[ 'wpv/get-posts' ],
-		[ $create_post_prompt ]
+		[ Wpv_Create_Post_Prompt::class ]
 	);
 } );
 ?>
