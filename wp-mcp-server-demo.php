@@ -6,6 +6,8 @@
  * Author URI: https://profiles.wordpress.org/gajendrasingh/
  * Requires at least: 6.9
  * Version: 1.0.0
+ * Tested up to: 7.0
+ * MCP Adapter: 0.5.0
  *
  * This file demonstrates:
  * - Registering Ability Categories
@@ -20,6 +22,8 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+use WP\MCP\Domain\Prompts\McpPromptBuilder;
 
 
 if ( ! class_exists( \WP\MCP\Core\McpAdapter::class ) ) {
@@ -64,6 +68,56 @@ add_action( 'wp_abilities_api_categories_init',function () {
  * ------------------------------------------------------------
  */
 add_action( 'wp_abilities_api_init', function () {
+	wp_register_ability(
+		'wpv/get-posts',
+		[
+			'label'       => 'Get Posts',
+			'description' => 'Retrieve a list of WordPress posts with optional filters.',
+			'category'    => 'site-post',
+			'output_schema' => [
+				'type'  => 'array',
+				'items' => [
+					'type'       => 'object',
+					'properties' => [
+						'ID'          => [ 'type' => 'integer' ],
+						'post_title'  => [ 'type' => 'string' ],
+						'post_status' => [ 'type' => 'string' ],
+						'post_date'   => [ 'type' => 'string' ],
+						'permalink'   => [ 'type' => 'string' ],
+					],
+				],
+			],
+			'execute_callback' => function ( $input = [] ) {
+				$input = is_array( $input ) ? $input : [];
+				$posts = get_posts( [
+					'numberposts' => $input['numberposts'] ?? 5,
+					'post_status' => $input['post_status'] ?? 'publish',
+				] );
+
+				return array_map( function ( $post ) {
+					return [
+						'ID'          => $post->ID,
+						'post_title'  => $post->post_title,
+						'post_status' => $post->post_status,
+						'post_date'   => $post->post_date,
+						'permalink'   => get_permalink( $post->ID ),
+					];
+				}, $posts );
+			},
+			'permission_callback' => function () {
+				return current_user_can( 'read' );
+			},
+			'meta' => [
+				'show_in_rest' => true,
+				'uri'          => 'wordpress://wpv/get-posts',
+				'mcp'          => [
+					'public' => true,
+					'type'   => 'resource',
+				],
+			],
+		]
+	);
+
 	wp_register_ability(
 		'wpv/create-post',
 		[
@@ -111,7 +165,10 @@ add_action( 'wp_abilities_api_init', function () {
 			],
 
 			'execute_callback'    => 'wpv_create_post',
-			'permission_callback' => '__return_true', // Demo only. Restrict in production.
+			'permission_callback' => function () {
+				// Always use a real capability check. Never use __return_true in production.
+				return current_user_can( 'edit_posts' );
+			},
 
 			'meta' => [
 				'show_in_rest' => true,
@@ -173,23 +230,50 @@ function wpv_create_post( $input ) {
  * Finally, attach abilities to an MCP server. 
  * ------------------------------------------------------------
  */
-add_action( 'mcp_adapter_init', function ( $adapter ) {
-		$adapter->create_server(
-			'site-content-server',  // Server ID
-			'site-content-server',  // REST namespace
-			'mcp',                  // REST route
-			'Site Content Server',  // Server name
-			'MCP server for creating WordPress posts.', // Description
-			'1.0.0',
-			[
-				\WP\MCP\Transport\HttpTransport::class, // Transport methods
-			],
-			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class, // Error handler
-			\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class, // Observability handler
-			[
-				'wpv/create-post', //Abilities to expose as tools
-			]
-		);
+class Wpv_Create_Post_Prompt extends McpPromptBuilder {
+	protected function configure(): void {
+		$this->name        = 'wpv/create-post-prompt';
+		$this->title       = 'Create Post Prompt';
+		$this->description = 'Guides the AI to create a WordPress post with title, content, and status.';
+		$this->add_argument( 'topic', 'The topic or subject of the post', true );
+		$this->add_argument( 'tone', 'Writing tone: formal, casual, or technical', false );
 	}
-);
+
+	public function handle( array $arguments ): array {
+		$topic = $arguments['topic'] ?? 'a general topic';
+		$tone  = $arguments['tone'] ?? 'professional';
+
+		return array_values( [
+			[
+				'role'    => 'user',
+				'content' => "Write a WordPress blog post about: {$topic}. " .
+				             "Use a {$tone} tone. " .
+				             "Provide a clear title, structured content with headings, and set status to draft.",
+			],
+		] );
+	}
+
+	public function has_permission( array $arguments ): bool {
+		return current_user_can( 'edit_posts' );
+	}
+}
+
+add_action( 'mcp_adapter_init', function ( $adapter ) {
+	$adapter->create_server(
+		'site-content-server',
+		'site-content-server',
+		'mcp',
+		'Site Content Server',
+		'MCP server for reading and creating WordPress posts.',
+		'1.0.0',
+		[
+			\WP\MCP\Transport\HttpTransport::class,
+		],
+		\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
+		\WP\MCP\Infrastructure\Observability\NullMcpObservabilityHandler::class,
+		[ 'wpv/create-post' ],
+		[ 'wpv/get-posts' ],
+		[ Wpv_Create_Post_Prompt::class ]
+	);
+} );
 ?>

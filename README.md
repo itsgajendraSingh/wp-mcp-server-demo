@@ -31,6 +31,22 @@ The ability is marked as **public**, so MCP-compatible agents can discover and u
 
 ---
 
+## Default Server (Zero Configuration)
+
+Since `mcp-adapter` v0.3.0, the adapter automatically creates a default MCP server.
+You do **not** need to call `create_server()` for basic use.
+
+Simply register your ability with `meta.mcp.public = true` and it will be
+discoverable on the default server at:
+
+```
+http://<your-site>/wp-json/mcp/mcp-adapter-default-server
+```
+
+This demo uses a custom server (`create_server()`) to show how to explicitly control which abilities are exposed and as which MCP component type (Tool / Resource / Prompt).
+
+---
+
 ## Usage
 
 1. Copy the code from `example-abilities.php`
@@ -55,6 +71,67 @@ curl -X POST http://<your-site>/wp-json/site-content-server/mcp/
 "id": 1,
 "method": "tools/list"
 }'
+```
+
+---
+
+## Testing with STDIO (WP-CLI)
+
+### List all registered MCP servers
+```bash
+wp mcp-adapter list
+```
+
+### Test tools/list
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+  | wp mcp-adapter serve --user=admin --server=site-content-server
+```
+
+### Test the create-post tool
+```bash
+echo '{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "wpv-create-post",
+    "arguments": {
+      "title": "Hello from MCP",
+      "content": "This post was created by an AI agent via MCP.",
+      "status": "draft"
+    }
+  }
+}' | wp mcp-adapter serve --user=admin --server=site-content-server
+```
+
+### Test the get-posts resource
+```bash
+echo '{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "resources/list",
+  "params": {}
+}' | wp mcp-adapter serve --user=admin --server=site-content-server
+```
+
+### Connect to Claude Desktop (STDIO)
+Add this to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "wordpress-demo": {
+      "command": "wp",
+      "args": [
+        "--path=/path/to/your/wordpress",
+        "mcp-adapter",
+        "serve",
+        "--server=site-content-server",
+        "--user=admin"
+      ]
+    }
+  }
+}
 ```
 
 ---
