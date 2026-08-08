@@ -120,15 +120,17 @@ Add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "wordpress-demo": {
-      "command": "wp",
+    "Create Post on Website": {
+      "command": "npx",
       "args": [
-        "--path=/path/to/your/wordpress",
-        "mcp-adapter",
-        "serve",
-        "--server=site-content-server",
-        "--user=admin"
-      ]
+        "-y",
+        "@automattic/mcp-wordpress-remote@latest"
+      ],
+      "env": {
+        "WP_API_URL": "https://your-site.com/wp-json/mcp/mcp-adapter-default-server",
+        "WP_API_USERNAME": "Username",
+        "WP_API_PASSWORD": "Application Password"
+      }
     }
   }
 }
